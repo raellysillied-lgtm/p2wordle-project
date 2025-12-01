@@ -10,15 +10,17 @@ import java.util.ArrayList;
 public class Controller {
     public String correctWord;
     private int currentLetter = 1; // column + 1
-    private int currentAttempt = 1; // row + 1
+    public int currentAttempt = 1; // row + 1
     private int maxAttempts;
     private String currentGuess = "";
     private Rectangle[][] tiles; // copy reference/"pointer" (heap) (row, column)
     private Text[][] characters; // same as above
-    private ArrayList<String> greenChars = new ArrayList<String>();
+    private ArrayList<String> greenButtons = new ArrayList<String>();
+    private ArrayList<String> yellowButtons = new ArrayList<String>();
     private Button[] topKeyboardStyle = new Button[10];  // Q-P
     private Button[] middleKeyboardStyle = new Button[9]; // A-L
     private Button[] bottomKeyboardStyle = new Button[7]; // Z-M
+    private boolean wordCorrect = false;
 
     public Controller(String correctWord, Rectangle[][] tiles, Text[][] characters, int maxAttempts) { // update these spare copies
         this.correctWord = correctWord.toLowerCase();
@@ -28,43 +30,56 @@ public class Controller {
     }
 
     public void addCharacter (char letter) {
-        if (currentLetter <= 5 && currentAttempt <= maxAttempts) {
+        if (currentLetter <= 5 && (currentAttempt <= maxAttempts && !wordCorrect)) {
             characters[currentAttempt - 1][currentLetter - 1].setText(String.valueOf(letter).toUpperCase());
             currentGuess += Character.toLowerCase(letter);
             currentLetter++;
             System.out.println(currentGuess);
+        } else {
+            if (!wordCorrect) {
+                System.out.println("you already got the word brochacho");
+                return;
+            }
+            System.out.println("you out of space lmao");
         }
     }
 
     public void backspace() {
-        if (currentLetter > 1 && currentAttempt <= maxAttempts) {
+        if (currentLetter > 1 && (currentAttempt <= maxAttempts && !wordCorrect)) {
             currentLetter--;
             characters[currentAttempt - 1][currentLetter - 1].setText("");
             if (!currentGuess.isEmpty()) {
                 currentGuess = currentGuess.substring(0, currentGuess.length() - 1);
+            } else {
+                System.out.println("this shouldn't ever happen (loop logic) but nothing to backspace");
             }
         }
     }
 
-    public void submitGuess() {
+    public String submitGuess() { // IMPORTANT: this is like the bulk of the logic LOL
         if (currentAttempt > maxAttempts) {
             System.out.println("ur out of guesses lmao");
-            return;
+            return "Out of guesses";
+        }
+
+        if (wordCorrect) {
+            System.out.println("you already got the word brochacho");
+            return "Word has been gotten";
         }
 
         if (currentGuess.length() != correctWord.length()) { // check if full word is given
             System.out.println("There are empty slots.");
-            return;
+            return "Not enough letters";
         }
 
         WordBank checkGuess = new WordBank(); // check if word is valid in word bank
         if (!checkGuess.checkWord(currentGuess)) {
             // System.out.println("Word not in bank.");
-            return;
+            return "Not in word list";
         }
 
-        char[] guessArray = currentGuess.toCharArray();
-        char[] correctWordArray = correctWord.toCharArray();
+        char[] guessArray = currentGuess.toCharArray(); // array of the guess (each index is a character)
+        char[] correctWordArray = correctWord.toCharArray(); // same thing for the correct word
         int[] letterInc = new int [26]; // (0 <-> A, 1 <-> B, etc, dictates number of a character in the correct word)
         for (char x : correctWordArray) { // inc each alphabetical numerical slot by 1 for each time it shows up in the answer
             letterInc[x - 'a']++; // each alphabetical character increase also increases its unicode index by one, get "distance" from 'a'
@@ -72,16 +87,16 @@ public class Controller {
         }
 
         for (int i = 0; i < currentGuess.length(); i++) { // first pass for greens
-            char guessedChar = currentGuess.charAt(i);
+            char guessedChar = currentGuess.charAt(i); // correct character at the index
             Rectangle tile = tiles[currentAttempt - 1][i];
             Text character = characters[currentAttempt - 1][i];
 
             if (correctWord.charAt(i) == guessedChar) {
-                tile.setFill(Variables.WORDLE_GREEN); // GREEN
+                tile.setFill(Variables.WORDLE_GREEN);
                 tile.setStroke(Variables.WORDLE_GREEN);
                 character.setFill(Color.WHITE);
-                letterInc[guessedChar - 'a']--;
-                greenChars.add(Character.toString(guessedChar));
+                letterInc[guessedChar - 'a']--; // decrease letter inc if guessed properly (how many chars not gotten)
+                greenButtons.add(Character.toString(guessedChar)); // add to arraylist for letters that have been greenlit
                 guessArray[i] = '*'; // mark character index on the guess array that is registered
                 // (W|A|T|E|R -> W|*|T|E|R)
                 updateKeyColor(correctWord.charAt(i), "green");
@@ -97,13 +112,13 @@ public class Controller {
                 continue; // skip, already marked as green
             }
 
-            if (letterInc[guessedChar - 'a'] > 0) {
+            if (letterInc[guessedChar - 'a'] > 0) { // this checks if our letter inc still has any remaining letters not guessed
                 tile.setFill(Variables.WORDLE_YELLOW);
                 tile.setStroke(Variables.WORDLE_YELLOW);
                 character.setFill(Color.WHITE);
                 letterInc[guessedChar - 'a']--;
                 boolean isGreen = false;
-                for (String x : greenChars) {
+                for (String x : greenButtons) { // this code checks our array of greenlit chars, making sure it doesnt change back
                     char green = Character.toLowerCase(x.charAt(0));
                     if (green == guessedChar) {
                         isGreen = true;
@@ -112,18 +127,35 @@ public class Controller {
                 }
                 if (!isGreen) {
                     updateKeyColor(currentGuess.charAt(i), "yellow");
+                    yellowButtons.add(Character.toString(currentGuess.charAt(i)));
                 }
             } else {
                 tile.setFill(Variables.WORDLE_GRAY);
                 tile.setStroke(Variables.WORDLE_GRAY);
                 character.setFill(Color.WHITE);
-                updateKeyColor(currentGuess.charAt(i), "gray");
+                boolean isYellow = false;
+                for (String x : yellowButtons) { // same concept as before for checking for buttons already green
+                    char yellow = Character.toLowerCase(x.charAt(0));
+                    if (yellow == guessedChar) {
+                        isYellow = true;
+                        break;
+                    }
+                }
+                if (!isYellow) {
+                    updateKeyColor(currentGuess.charAt(i), "gray");
+                }
             }
         }
-
         currentAttempt++;
         currentLetter = 1;
+        if (currentGuess.toLowerCase().equals(correctWord.toLowerCase())) {
+            wordCorrect = true;
+            currentGuess = "";
+            return "WIN";
+
+        }
         currentGuess = "";
+        return "No error";
     }
 
     public void addKeys(Button b, int index, String keyboardRow) { // import keyboard rows
@@ -177,4 +209,5 @@ public class Controller {
         }
         return null;
     }
+
 }
