@@ -2,6 +2,7 @@ package main.java;
 
 import javafx.animation.TranslateTransition;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -11,8 +12,10 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.transform.Rotate;
 import javafx.stage.Stage;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.text.*;
 import javafx.scene.control.PasswordField;
 import javafx.scene.layout.StackPane;
@@ -33,7 +36,7 @@ public class UI extends Application {
     mix tbh) is just really messy
      */
 
-    public static int rows = 6; // guesses allowed (base 6)
+    public int rows = 6; // guesses allowed (base 6)
     private static int cols = 5; // word length lol
     private Rectangle[][] tiles = new Rectangle[rows][cols];
     private Text[][] characters = new Text[rows][cols];
@@ -49,6 +52,10 @@ public class UI extends Application {
         private Button submit;
         private Button random;
         private Text hello;
+
+    private int playerTurn = 0;
+    private int[] playerAttempts = {rows, rows};
+    Timer timer;
 
     @Override
     public void start(Stage primaryStage) {
@@ -80,6 +87,19 @@ public class UI extends Application {
                 wordGrid.add(tilePane, col, row); // add to grid pane
             }
         }
+
+        // player icon lol and timer stuff
+        Image playerIcon = new Image("file:src/main/java/resources/icon p" + ((playerTurn % 2) + 1) + ".png");
+        ImageView playerIconView = new ImageView(playerIcon);
+        playerIconView.setFitHeight(80);
+        playerIconView.setFitWidth(80);
+        playerIconView.setPreserveRatio(true);
+        playerIconView.setTranslateX(-154);
+        playerIconView.setTranslateY(296);
+        Label countdown = new Label("0");
+        countdown.setTranslateX(146);
+        countdown.setTranslateY(296);
+        countdown.setStyle("-fx-font-family: 'Segoe UI'; -fx-font-size: 36px; -fx-text-fill: #222034; -fx-font-style: italic;");
 
         // Keyboard AHHHHHH
         HBox topKeyboardRow = new HBox(6); // top keyboard row
@@ -156,7 +176,6 @@ public class UI extends Application {
                     return;
                 }
                 if (errorMessage.equals("LOSS")) {
-                    showMessage(correctWord.toUpperCase(), guessingScreen, 3, false);
                     showLossScreen();
                     return;
                 }
@@ -206,10 +225,18 @@ public class UI extends Application {
         keyboard.setAlignment(Pos.CENTER);
         keyboard.setTranslateY(10);
 
+        Rectangle playerDivider = new Rectangle(3, 120);
+        playerDivider.setFill(Color.web("#222034"));
+        playerDivider.setTranslateX(1);
+        playerDivider.setTranslateY(300);
+
         // Main layout of children of the guessing root
         VBox rootGuessing = new VBox(20, wordGrid, keyboard);
         rootGuessing.setAlignment(Pos.TOP_CENTER);
         guessingScreen.getChildren().add(rootGuessing);
+        guessingScreen.getChildren().add(playerIconView);
+        guessingScreen.getChildren().add(countdown);
+        guessingScreen.getChildren().add(playerDivider);
         primaryStage.setResizable(false);
 
         // Choosing screen
@@ -277,7 +304,6 @@ public class UI extends Application {
                             return;
                         }
                         if (errorMessage.equals("LOSS")) {
-                            showMessage(correctWord.toUpperCase(), guessingScreen, 3, false);
                             showLossScreen();
                             return;
                         }
@@ -312,6 +338,8 @@ public class UI extends Application {
                 random.setDisable(true);
                 guessingScreen.setDisable(false);
                 freezeGuessingInput = false;
+                timer = new Timer(countdown, (6 * 2) + 0);
+                timer.start();
             }
         });
 
@@ -365,6 +393,52 @@ public class UI extends Application {
         fadeOut.play();
     }
 
+    public class Timer extends Thread {
+        private int countDown;
+        private boolean running = true;
+        private Label timerLabel;
+
+        public Timer(Label timerLabel, int countDown) {
+            this.timerLabel = timerLabel;
+            this.countDown = countDown;
+        }
+
+        @Override
+        public void run() {
+            Platform.runLater(() -> updateTimer());
+            while (running && countDown > 0) {
+                try {
+                    currentThread().sleep(1000);
+                    if (!running) {break;}
+                    countDown--; // background thread
+                    Platform.runLater(() -> updateTimer()); // queues task to execute on the ui thread
+                } catch (InterruptedException e) {
+                    // e.printStackTrace();
+                    Thread.currentThread().interrupt(); // make as interrupted
+                    break; // exit loop and end thread
+                }
+            }
+
+            if (countDown <= 0) {
+                Platform.runLater(() -> {
+                    timerLabel.setText("Times up!");
+                    showLossScreen();
+                });
+            }
+
+        }
+
+        public void stopTimer() {
+            running = false;
+            this.interrupt();
+        }
+
+        public void updateTimer() {
+            timerLabel.setText((int) (Math.floor(countDown / 60)) + ":" + String.format("%02d", (countDown % 60)));
+        }
+
+    }
+
     public void showWinScreen() {
         freezeGuessingInput = true;
         String[] winMessages = {"Genius", "Magnificent", "Impressive", "Splendid", "Great", "Phew"};
@@ -378,16 +452,22 @@ public class UI extends Application {
 
     public void showLossScreen() {
         freezeGuessingInput = true;
+        showMessage(correctWord.toUpperCase(), guessingScreen, 3, false);
         endScreen();
     }
 
     public void endScreen() {
-        new Timeline(new KeyFrame(Duration.seconds(3), e -> repromptAndRestart())).play();
+        new Timeline(new KeyFrame(Duration.seconds(4), e -> {
+            repromptAndRestart();
+        })).play();
         FadeTransition fadeout = new FadeTransition(Duration.millis(1000), guessingScreen);
         fadeout.setFromValue(1);
         fadeout.setToValue(0);
-        fadeout.setDelay(Duration.seconds(2));
+        fadeout.setDelay(Duration.seconds(3));
+
         fadeout.play();
+        timer.stopTimer();
+        playerAttempts[playerTurn % 2]--;
     }
 
     public void repromptAndRestart() {
@@ -423,7 +503,25 @@ public class UI extends Application {
         });
 
         // Reset controller + board
+        playerTurn++;
+        rows = 4; // playerAttempts[playerTurn % 2];
         controller.resetGameState();
+        updatePlayerIcon();
+    }
+
+    public void updatePlayerIcon() {
+        // Update the player icon based on the current player turn
+        Image playerIcon = new Image("file:src/main/java/resources/icon p" + ((playerTurn % 2) + 1) + ".png");
+        ImageView playerIconView = new ImageView(playerIcon);
+        playerIconView.setFitHeight(80);
+        playerIconView.setFitWidth(80);
+        playerIconView.setPreserveRatio(true);
+        playerIconView.setTranslateX(-154);
+        playerIconView.setTranslateY(296);
+
+        // Update the guessing screen with the new player icon
+        guessingScreen.getChildren().removeIf(child -> child instanceof ImageView); // Remove the old icon
+        guessingScreen.getChildren().add(playerIconView); // Add the new icon
     }
 
     public static void main(String[] args) {
