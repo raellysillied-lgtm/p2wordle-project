@@ -1,4 +1,4 @@
-<img width="722" height="309" alt="image" src="https://github.com/user-attachments/assets/9e294dcd-0dbe-42fa-89c4-e776a153194b" />Wordel
+Wordel
 ------
 A simple (and messy) mockup and take on the famous word game, Wordle, using JavaFX.
 Supports a two-player mode for competitive play.
@@ -57,6 +57,7 @@ Exceptions are also used inside of the project, mainly used to prevent any issue
 - Methods, parameters, blocks, scope
 
 There is a large number of different methods for various purposes. Here are some in `Controller.java`.
+<img width="722" height="309" alt="image" src="https://github.com/user-attachments/assets/9e294dcd-0dbe-42fa-89c4-e776a153194b" />
 <img width="204" height="328" alt="image" src="https://github.com/user-attachments/assets/e89e473f-645e-467c-8b20-1ae9e85c3386" />
 <img width="889" height="302" alt="image" src="https://github.com/user-attachments/assets/58aa28fa-3fbe-477e-816d-468ce05de1e9" />
 
