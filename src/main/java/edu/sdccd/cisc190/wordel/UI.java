@@ -29,10 +29,18 @@ import javafx.scene.control.Label;
 import javafx.animation.*;
 
     /**
-    * The main visual component of this dual player Wordle adaption
+     * The main visual component of this dual player Wordle adaption
+     * Supports single player (regular Wordle) and two player Wordle
+     *
     **/
 
 public class UI extends Application {
+
+    private enum GameMode {
+        SINGLE_PLAYER,
+        TWO_PLAYER
+    }
+    private GameMode gameMode;
 
     private static int rows = 6; // guesses allowed (base 6)
     private static int cols = 5; // word length lol
@@ -41,12 +49,13 @@ public class UI extends Application {
     GridPane wordGrid;
     private static String correctWord;
     private Controller controller = new Controller("", tiles, characters, rows);
-    private boolean freezeGuessingInput = false;
+    private boolean freezeGuessingInput = true;
     private Label currentMessageCheck = null;
 
     private StackPane guessingScreen = new StackPane(); // the full screen for when you're guessing the word
-    private HBox playerStats = new HBox();
+    private HBox playerStats;
     private Scene scene; // the scene lol
+    private VBox rootGuessing;
     private VBox rootChooser; // the screen for when you're choosing the word to be guessed
         private PasswordField chosenWord; // the rest of these are part of rootChooser
         private Button submit;
@@ -56,13 +65,14 @@ public class UI extends Application {
     private int playerTurn = 0;
     private int[] playerAttempts = {rows, rows};
     Timer timer;
+    Image playerIcon;
+    ImageView playerIconView;
 
     private final WordBank wordBank = new WordBank();
 
     @Override // override the original application method
     public void start(Stage primaryStage) {
         primaryStage.setTitle("Wordel");
-
 
         // Wordle tiles
         wordGrid = new GridPane();
@@ -73,8 +83,16 @@ public class UI extends Application {
         createGrid();
 
         // player icon lol and timer stuff
-        Image playerIcon = new Image("file:src/main/java/edu/sdccd/cisc190/wordel/resources/icon p" + ((playerTurn % 2) + 1) + ".png");
-        ImageView playerIconView = new ImageView(playerIcon);
+        try (FileInputStream icon = new FileInputStream
+                ("src/main/resources/edu/sdccd/cisc190/wordel/icon p" + ((playerTurn % 2) + 1) + ".png")
+        ) {
+            playerIcon = new Image(icon);
+        } catch (FileNotFoundException e) {
+            System.out.println("File not found.");
+        } catch (IOException e) {
+            System.out.println("Error reading file.");
+        }
+        playerIconView = new ImageView(playerIcon);
         playerIconView.setFitHeight(80);
         playerIconView.setFitWidth(80);
         playerIconView.setPreserveRatio(true);
@@ -90,7 +108,7 @@ public class UI extends Application {
         countdown.setTranslateX(-66);
         countdown.setTranslateY(0);
         countdown.setStyle("-fx-font-family: 'Segoe UI'; -fx-font-size: 36px; -fx-text-fill: #222034; -fx-font-style: italic;");
-        HBox playerStats = new HBox(100);
+        playerStats = new HBox(100);
         playerStats.setAlignment(Pos.CENTER);
         playerStats.setTranslateX(60);
         playerStats.setTranslateY(6);
@@ -155,7 +173,13 @@ public class UI extends Application {
         bottomKeyboardRow.setAlignment(Pos.CENTER);
         Button enter = new Button("ENTER"); // enter key
         enter.setPrefSize(74, 60);
-        enter.setStyle("-fx-background-color: #d3d6da; -fx-text-fill: black; -fx-font-size: 12px; -fx-font-weight: bold; -fx-font-style: italic;");
+        enter.setStyle(
+                "-fx-background-color: #d3d6da;" +
+                "-fx-text-fill: black; " +
+                "-fx-font-size: 12px; " +
+                "-fx-font-weight: bold; " +
+                "-fx-font-style: italic;"
+        );
         String enterText = "ENTER";
         enter.setFocusTraversable(false);
         enter.setOnAction(e -> {
@@ -165,16 +189,18 @@ public class UI extends Application {
             if (controller != null) {
                 System.out.println("onscreen keyboard");
                 String errorMessage = controller.submitGuess();
-                if (errorMessage.equals("No error")) {
-                    return;
-                }
-                if (errorMessage.equals("WIN")) {
-                    showWinScreen();
-                    return;
-                }
-                if (errorMessage.equals("LOSS")) {
-                    showLossScreen();
-                    return;
+                switch (errorMessage) {
+                    case "No error" -> {
+                        return;
+                    }
+                    case "WIN" -> {
+                        showWinScreen();
+                        return;
+                    }
+                    case "LOSS" -> {
+                        showLossScreen();
+                        return;
+                    }
                 }
                 showMessage(errorMessage, guessingScreen, 0.5, true);
             }
@@ -185,7 +211,12 @@ public class UI extends Application {
         for (char bottomKeyboardCharacter : bottomKeyboardCharacters) {
             Button button = new Button(String.valueOf(bottomKeyboardCharacter));
             button.setPrefSize(45, 60);
-            button.setStyle("-fx-background-color: #d3d6da; -fx-text-fill: black; -fx-font-size: 19px; -fx-font-weight: bold;");
+            button.setStyle(
+                    "-fx-background-color: #d3d6da; " +
+                    "-fx-text-fill: black; " +
+                    "-fx-font-size: 19px; " +
+                    "-fx-font-weight: bold;"
+            );
             String buttonText = String.valueOf(bottomKeyboardCharacter);
             // button.setText(buttonText);
             button.setFocusTraversable(false);
@@ -205,7 +236,12 @@ public class UI extends Application {
         }
         Button backspace = new Button("⌫"); // backspace key
         backspace.setPrefSize(74, 60);
-        backspace.setStyle("-fx-background-color: #d3d6da; -fx-text-fill: black; -fx-font-size: 20px; -fx-font-weight: bold;");
+        backspace.setStyle(
+                "-fx-background-color: #d3d6da; " +
+                "-fx-text-fill: black; " +
+                "-fx-font-size: 20px; " +
+                "-fx-font-weight: bold;"
+        );
         String backspacetext = "BACKSPACE";
         backspace.setFocusTraversable(false);
         backspace.setOnAction(e -> {
@@ -223,7 +259,7 @@ public class UI extends Application {
         keyboard.setTranslateY(10);
 
         // Main layout of children of the guessing root
-        VBox rootGuessing = new VBox(20, wordGrid, keyboard, playerStats);
+        rootGuessing = new VBox(20, wordGrid, keyboard, playerStats);
         rootGuessing.setAlignment(Pos.CENTER);
         rootGuessing.setTranslateY(-12);
         guessingScreen.getChildren().add(rootGuessing);
@@ -249,7 +285,7 @@ public class UI extends Application {
         HBox wordGiver = new HBox(10, chosenWord, submit);
         wordGiver.setAlignment(Pos.CENTER);
         Rectangle divider = new Rectangle(320,2);
-        divider.setFill(Constants.WORDLE_YELLOW);;
+        divider.setFill(Constants.WORDLE_YELLOW);
         random = new Button("Load a random word!");
         random.setPrefWidth(200);
         random.setPrefHeight(30);
@@ -263,7 +299,8 @@ public class UI extends Application {
         rootChooser.setAlignment(Pos.CENTER);
 
         // Pre-maturely set scene and stage
-        scene = new Scene(rootChooser, 640, 740);
+        VBox startMenu = createStartMenu();
+        scene = new Scene(startMenu, 640, 740);
         scene.setFill(Color.WHITESMOKE);
         primaryStage.setScene(scene);
 
@@ -285,16 +322,18 @@ public class UI extends Application {
                 case SPACE:
                     if (controller != null) {
                         String errorMessage = controller.submitGuess();
-                        if (errorMessage.equals("No error")) {
-                            return;
-                        }
-                        if (errorMessage.equals("WIN")) {
-                            showWinScreen();
-                            return;
-                        }
-                        if (errorMessage.equals("LOSS")) {
-                            showLossScreen();
-                            return;
+                        switch (errorMessage) {
+                            case "No error" -> {
+                                return;
+                            }
+                            case "WIN" -> {
+                                showWinScreen();
+                                return;
+                            }
+                            case "LOSS" -> {
+                                showLossScreen();
+                                return;
+                            }
                         }
                         showMessage(errorMessage, guessingScreen, 0.5, true);
                         break;
@@ -331,13 +370,15 @@ public class UI extends Application {
         });
 
         // Application icon
-        try (FileInputStream image = new FileInputStream("src/main/java/edu/sdccd/cisc190/wordel/resources/wordel icon LOL.png")) {
+        try (FileInputStream image = new FileInputStream(
+            "src/main/resources/edu/sdccd/cisc190/wordel/wordel icon LOL.png"
+        )) {
             Image icon = new Image(image);
             primaryStage.getIcons().add(icon);
         } catch (FileNotFoundException e) {
             System.out.println("File not found.");
         } catch (IOException e) {
-            System.out.println("Error reading file");
+            System.out.println("Error reading file.");
         }
 
         // Show the application
@@ -373,7 +414,12 @@ public class UI extends Application {
         Label userFB = new Label(message);
         currentMessageCheck = userFB;
         userFB.setFont(Font.font("Arial", FontPosture.ITALIC, 16));
-        userFB.setStyle("-fx-background-color: black; -fx-background-radius: 6px; -fx-text-fill: white; -fx-padding: 10px 16px;");
+        userFB.setStyle(
+                "-fx-background-color: black; " +
+                "-fx-background-radius: 6px; " +
+                "-fx-text-fill: white; " +
+                "-fx-padding: 10px 16px;"
+        );
         userFB.setOpacity(1);
         userFB.setAlignment(Pos.CENTER);
         userFB.setTranslateY(-329);
@@ -407,7 +453,7 @@ public class UI extends Application {
          * Background thread used to update the timer, uses UI thread when updating UI elements
          **/
 
-    public class Timer extends Thread {
+    public class Timer extends Thread { // multithreading, uses background and JavaFX thread
         private int countDown;
         private boolean running = true;
         private Label timerLabel;
@@ -428,7 +474,7 @@ public class UI extends Application {
                     Platform.runLater(() -> updateTimer()); // queues task to execute on the ui thread
                 } catch (InterruptedException e) {
                     // e.printStackTrace();
-                    Thread.currentThread().interrupt(); // make as interrupted
+                    Thread.currentThread().interrupt(); // mark as interrupted
                     break; // exit loop and end thread
                 }
             }
@@ -457,9 +503,9 @@ public class UI extends Application {
         freezeGuessingInput = true;
         String[] winMessages = {"Genius", "Magnificent", "Impressive", "Splendid", "Great", "Phew"};
         if (controller.currentAttempt == (rows + 1)) {
-            showMessage("Phew", guessingScreen, 4, false);
+            showMessage("Phew", guessingScreen, 3, false);
         } else {
-            showMessage(winMessages[(controller.currentAttempt - 2)], guessingScreen, 4, false);
+            showMessage(winMessages[(controller.currentAttempt - 2)], guessingScreen, 3, false);
         }
         endScreen();
     }
@@ -467,24 +513,32 @@ public class UI extends Application {
     public void showLossScreen() {
         freezeGuessingInput = true;
         showMessage(correctWord.toUpperCase(), guessingScreen, 3, false);
-        playerAttempts[playerTurn % 2]--; // decrease the number of guesses they get in the future
+        if (gameMode != GameMode.SINGLE_PLAYER) {
+            playerAttempts[playerTurn % 2]--; // decrease the number of guesses they get in the future
+        }
         endScreen();
     }
 
     public void endScreen() {
-        new Timeline(new KeyFrame(Duration.seconds(4), e -> {
-            repromptAndRestart();
-        })).play();
         FadeTransition fadeout = new FadeTransition(Duration.millis(1000), guessingScreen);
         fadeout.setFromValue(1);
         fadeout.setToValue(0);
-        fadeout.setDelay(Duration.seconds(3));
+        fadeout.setDelay(Duration.seconds(3.5));
+        fadeout.setOnFinished(e -> {
+            if (gameMode == GameMode.SINGLE_PLAYER) {
+                startSinglePlayerGame();
+                return;
+            }
+            repromptAndRestart();
+        });
 
         fadeout.play();
-        timer.stopTimer();
+        if (timer != null) {
+            timer.stopTimer();
+        }
     }
 
-    public void repromptAndRestart() {
+    public void repromptAndRestart() { // two player, checks if player lost, else pass onto the next player
         if (playerAttempts[playerTurn % 2] <= 0) {
             System.out.println("Player " + ((playerTurn % 2) + 1) + " has lost!");
             rootChooser.getChildren().retainAll(hello);
@@ -546,16 +600,21 @@ public class UI extends Application {
         createGrid(); // remake the grid
 
         // refresh controller manually
-        controller.correctWord = "";
         controller.tiles = tiles;
         controller.characters = characters;
         controller.maxAttempts = rows;
     }
 
-    public void updatePlayerIcon() {
+    public void updatePlayerIcon() { // updates player icon depending on the turn
         // Update the player icon based on the current player turn
-        Image playerIcon = new Image("file:src/main/java/edu/sdccd/cisc190/wordel/resources/icon p" + ((playerTurn % 2) + 1) + ".png");
-        ImageView playerIconView = new ImageView(playerIcon);
+        try (FileInputStream icon = new FileInputStream("src/main/resources/edu/sdccd/cisc190/wordel/icon p" + ((playerTurn % 2) + 1) + ".png")) {
+            playerIcon = new Image(icon);
+        } catch (FileNotFoundException e) {
+            System.out.println("File not found.");
+        } catch (IOException e) {
+            System.out.println("Error reading file.");
+        }
+        playerIconView = new ImageView(playerIcon);
         playerIconView.setFitHeight(80);
         playerIconView.setFitWidth(80);
         playerIconView.setPreserveRatio(true);
@@ -563,8 +622,163 @@ public class UI extends Application {
         playerIconView.setTranslateY(0);
 
         // Update the guessing screen with the new player icon
-        playerStats.getChildren().removeIf(child -> child instanceof ImageView); // Remove the old icon
-        playerStats.getChildren().add(playerIconView); // Add the new icon
+        playerStats.getChildren().set(0, playerIconView);
+    }
+
+    private VBox createStartMenu() { // opens the menu when application first opened
+        Image m;
+        ImageView wordelTitle = new ImageView();
+        try (FileInputStream title = new FileInputStream("src/main/resources/edu/sdccd/cisc190/wordel/wordel title.png")) {
+            m = new Image(title);
+            wordelTitle = new ImageView(m);
+        } catch (FileNotFoundException e) {
+            System.out.println("File not found.");
+        } catch (IOException e) {
+            System.out.println("Error reading file.");
+        }
+        wordelTitle.setFitHeight(400);
+        wordelTitle.setFitWidth(400);
+        wordelTitle.setPreserveRatio(true);
+
+        Text instructions = new Text(
+                """
+                        Guess the 5-letter word in limited attempts.
+                        Green = correct letter & position
+                        Yellow = correct letter, wrong position
+                        Gray = letter not in the word
+                        
+                        In Two Player, you compete with an opponent.
+                        Every time you fail to get the word, you lose an available.
+                        First person to run out of guesses loses."""
+        );
+        instructions.setTextAlignment(TextAlignment.CENTER);
+        instructions.setFont(Font.font(16));
+
+        Button solo = new Button("Single Player");
+        solo.setPrefSize(200, 50);
+        solo.setFocusTraversable(false);
+        solo.setStyle(
+                "-fx-font-size: 18px; " +
+                "-fx-font-family: 'Raleway'; " +
+                "-fx-font-style: italic;" +
+                "-fx-text-fill: white;" +
+                "-fx-border-color: white;" +
+                "-fx-border-width: 1.5px;" +
+                "-fx-border-radius: 10px;" +
+                "-fx-border-style: solid;" +
+                "-fx-background-radius: 10px;" +
+                "-fx-background-color: " + Constants.WORDLE_GREEN_HEX
+        );
+
+        Button duo = new Button("Two Player");
+        duo.setPrefSize(200, 50);
+        duo.setFocusTraversable(false);
+        duo.setStyle(
+                "-fx-font-size: 18px; " +
+                "-fx-font-family: 'Raleway'; " +
+                "-fx-font-style: italic;" +
+                "-fx-text-fill: white;" +
+                "-fx-border-color: white;" +
+                "-fx-border-width: 1.5px;" +
+                "-fx-border-radius: 10px;" +
+                "-fx-border-style: solid;" +
+                "-fx-background-radius: 10px;" +
+                "-fx-background-color: " + Constants.WORDLE_YELLOW_HEX
+        );
+
+        solo.setOnAction(e -> {
+            gameMode = GameMode.SINGLE_PLAYER;
+            rootGuessing.setTranslateY(-28);
+            startSinglePlayerGame();
+        });
+
+        duo.setOnAction(e -> {
+            gameMode = GameMode.TWO_PLAYER;
+            scene.setRoot(rootChooser);
+        });
+
+        VBox menu = new VBox(30, wordelTitle, instructions, solo, duo);
+        menu.setAlignment(Pos.CENTER);
+        menu.setStyle("-fx-background-color: whitesmoke;");
+        return menu;
+    }
+
+    private void startSinglePlayerGame() {
+        correctWord = wordBank.randomWord();
+        controller.correctWord = correctWord;
+        System.out.println(correctWord);
+        chosenWord.setDisable(true);
+        submit.setDisable(true);
+        random.setDisable(true);
+        guessingScreen.setDisable(false);
+        freezeGuessingInput = false;
+        rows = 6;
+
+        playerStats.setVisible(false); // dont show or let bottom elements take space, hide em
+        playerStats.setManaged(false);
+        guessingScreen.setOpacity(1);
+        guessingScreen.setTranslateX(0);
+        guessingScreen.setTranslateY(0);
+        scene.setRoot(guessingScreen);
+
+        rebuildBoard();
+        controller.resetGameState();
+
+        // Reset position & opacity for entrance animation
+        guessingScreen.setOpacity(0);
+        guessingScreen.setTranslateY(-50); // start slightly above
+
+        scene.setRoot(guessingScreen);
+
+        // Entrance animation: fade + slide down
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(600), guessingScreen);
+        fadeIn.setFromValue(0);
+        fadeIn.setToValue(1);
+
+        TranslateTransition slideDown = new TranslateTransition(Duration.millis(600), guessingScreen);
+        slideDown.setFromY(-50);
+        slideDown.setToY(0);
+        slideDown.setInterpolator(Interpolator.EASE_OUT);
+
+        ParallelTransition entrance = new ParallelTransition(fadeIn, slideDown);
+        entrance.play();
+        animateKeyboardIn();
+
+    }
+
+    private void animateKeyboardIn() {
+        double delayIncrement = 0.02; // seconds between each button animation
+        int rowIndex = 0;
+        for (javafx.scene.Node rowNode : ((VBox) rootGuessing.getChildren().get(1)).getChildren()) { // rootGuessing.getChildren().get(1) == keyboard VBox
+            if (!(rowNode instanceof HBox)) continue;
+            HBox row = (HBox) rowNode;
+            int colIndex = 0;
+            for (javafx.scene.Node node : row.getChildren()) {
+                if (!(node instanceof Button)) continue;
+                Button button = (Button) node;
+
+                // Start above the normal position and invisible
+                button.setTranslateX(-50 * (((rowIndex % 2) - 0.5) * 2));
+                button.setOpacity(0);
+
+                TranslateTransition drop = new TranslateTransition(Duration.millis(750), button);
+                drop.setFromX(-50 * (((rowIndex % 2) - 0.5) * 2));
+                drop.setToX(0);
+                drop.setInterpolator(Interpolator.SPLINE(.5,0,.66,1));
+
+                FadeTransition fade = new FadeTransition(Duration.millis(500), button);
+                fade.setFromValue(0);
+                fade.setToValue(1);
+                fade.setInterpolator(Interpolator.EASE_BOTH);
+
+                ParallelTransition transition = new ParallelTransition(drop, fade);
+                transition.setDelay(Duration.seconds((rowIndex * row.getChildren().size() + colIndex) * delayIncrement));
+                transition.play();
+
+                colIndex++;
+            }
+            rowIndex++;
+        }
     }
 
     public static void main(String[] args) {

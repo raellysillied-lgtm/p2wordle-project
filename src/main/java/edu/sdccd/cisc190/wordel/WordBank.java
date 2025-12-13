@@ -10,8 +10,8 @@ import java.util.Random;
     **/
 
 public class WordBank {
-    String fileLocationGuess = "src/main/java/edu/sdccd/cisc190/wordel/resources/allowed guesses.txt";
-    String fileLocationFinal = "src/main/java/edu/sdccd/cisc190/wordel/resources/valid final words.txt";
+    String fileLocationGuess = "src/main/resources/edu/sdccd/cisc190/wordel/allowed guesses.txt";
+    String fileLocationFinal = "src/main/resources/edu/sdccd/cisc190/wordel/valid final words.txt";
     public boolean checkWord(String word) {
         String targetWord = word.trim().toLowerCase();
         if (targetWord.length() != 5) {

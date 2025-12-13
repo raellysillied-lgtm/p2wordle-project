@@ -13,7 +13,7 @@ import java.util.ArrayList;
     /**
      * Serves as a mix of a controller and model that processes the base logic of the wordle play screen
      * Uses references in order to update
-     * Information console text used to debug and catch errors
+     * Informal console text used to debug and catch errors
     **/
 
 public class Controller {
@@ -42,15 +42,23 @@ public class Controller {
     public void addCharacter (char letter) {
         if (currentLetter <= 5 && (currentAttempt <= maxAttempts && !wordCorrect)) {
             characters[currentAttempt - 1][currentLetter - 1].setText(String.valueOf(letter).toUpperCase());
+            ScaleTransition pop = new ScaleTransition(Duration.millis(200), characters[currentAttempt - 1][currentLetter - 1]);
+            pop.setFromX(1.1);
+            pop.setFromY(1.1);
+            pop.setToX(1.0);
+            pop.setToY(1.0);
+            pop.setAutoReverse(false);
+            pop.setInterpolator(Interpolator.EASE_OUT);
+            pop.play();
             currentGuess += Character.toLowerCase(letter);
             currentLetter++;
             System.out.println(currentGuess);
         } else {
             if (wordCorrect) {
-                System.out.println("you already got the word brochacho");
+                System.out.println("Word has already been gotten"); // should never run
                 return;
             }
-            System.out.println("you out of space lmao");
+            System.out.println("No more space");
         }
     }
 
@@ -68,17 +76,17 @@ public class Controller {
 
     public String submitGuess() { // IMPORTANT: this is like the bulk of the logic LOL
         if (currentAttempt > maxAttempts) { // shouldnt run
-            System.out.println("ur out of guesses lmao");
+            System.out.println("ur out of guesses");
             return "Out of guesses";
         }
 
-        if (wordCorrect) { // shouldnt run
-            System.out.println("you already got the word brochacho");
+        if (wordCorrect) { // again, shouldnt run
+            System.out.println("Word has already been gotten");
             return "Word has been gotten";
         }
 
         if (currentGuess.length() != correctWord.length()) { // check if full word is given
-            System.out.println("There are empty slots.");
+            System.out.println("There are empty slots");
             return "Not enough letters";
         }
 
@@ -156,6 +164,20 @@ public class Controller {
                 }
             }
         }
+
+        for (int i = 0; i < currentGuess.length(); i++) { // animation pop
+            Rectangle tile = tiles[currentAttempt - 1][i];
+            Text character = characters[currentAttempt - 1][i];
+            ScaleTransition pop = new ScaleTransition(Duration.millis(200), tile);
+            pop.setFromX(1.05);
+            pop.setFromY(1.05);
+            pop.setToX(1.0);
+            pop.setToY(1.0);
+            pop.setAutoReverse(false);
+            pop.setInterpolator(Interpolator.EASE_OUT);
+            pop.play();
+        }
+
         currentAttempt++;
         currentLetter = 1;
         if (currentGuess.toLowerCase().equals(correctWord.toLowerCase())) {
@@ -170,29 +192,6 @@ public class Controller {
         currentGuess = "";
         return "No error";
 
-    }
-
-    private void animateTile (Rectangle tile, Text character, Color newColor) { // scrapped for now
-        for (int i = 0; i < currentGuess.length(); i++) { // first pass for greens
-
-            RotateTransition flipOutTile = new RotateTransition(Duration.millis(150), tile);
-            flipOutTile.setAxis(Rotate.Y_AXIS);
-            flipOutTile.setFromAngle(0);
-            flipOutTile.setToAngle(90);
-            flipOutTile.setInterpolator(Interpolator.EASE_IN);
-
-            RotateTransition flipInTile = new RotateTransition(Duration.millis(150), tile);
-            flipOutTile.setAxis(Rotate.Y_AXIS);
-            flipInTile.setFromAngle(90);
-            flipInTile.setToAngle(0);
-            flipInTile.setInterpolator(Interpolator.EASE_IN);
-
-            flipOutTile.setOnFinished(e -> {
-                flipInTile.play();
-            });
-
-            flipOutTile.play();
-        }
     }
 
     public void addKeys(Button b, int index, String keyboardRow) { // import keyboard rows
