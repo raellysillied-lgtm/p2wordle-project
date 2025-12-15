@@ -1,4 +1,4 @@
-package main.java.edu.sdccd.cisc190.wordel;
+package edu.sdccd.cisc190.wordel;
 
 import javafx.animation.TranslateTransition;
 import javafx.application.Application;
